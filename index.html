@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>出入庫系統 - 專業掃描整合版 v6.0</title>
+  <title>出入庫系統 - 專業掃描整合版 v6.1</title>
   <!-- 引入 HTML5-QRCode 掃描庫 -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
@@ -101,7 +101,10 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>📦 出入庫系統</h1>
+      <h1 style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+        📦 出入庫系統
+        <button onclick="setApiUrlUI()" style="background: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; padding: 4px 8px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="設定 API 網址">⚙️</button>
+      </h1>
       <div style="background: #eee; padding: 4px 12px; border-radius: 12px; font-size: 14px; display: inline-block; margin-top: 5px; font-weight: bold; color: #555;">
         當前類別: <span id="categoryLabel">載入中...</span>
       </div>
@@ -203,9 +206,9 @@
 
 <script>
     // ==========================================
-    // 🚨 步驟一：請在此貼上您的 Google Apps Script 部署 URL (結尾是 /exec)
+    // API_URL 改為動態取得 (由網址參數或瀏覽器暫存)
     // ==========================================
-    const API_URL = "https://script.google.com/macros/s/AKfycbx2Fvgj6YiSmLQmQfk9box1HflczNdJFxLNnzLYWoYUbaRM9nth2mdEcC_lOQzhRIz5/exec"; 
+    let API_URL = ""; 
     
     let currentCategory = "";
     let html5QrCode = null;
@@ -220,16 +223,52 @@
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       currentCategory = urlParams.get('category');
+      const apiParam = urlParams.get('api');
       
+      // 1. 如果網址中有帶入 api 參數，自動記憶到瀏覽器
+      if (apiParam) {
+        API_URL = decodeURIComponent(apiParam);
+        localStorage.setItem('GAS_API_URL', API_URL);
+        // 清理網址列，讓網址看起來乾淨
+        window.history.replaceState({}, document.title, window.location.pathname + "?category=" + encodeURIComponent(currentCategory));
+      } else {
+        // 2. 否則從瀏覽器暫存抓取
+        API_URL = localStorage.getItem('GAS_API_URL');
+      }
+
       if (!currentCategory) {
         document.getElementById('categoryLabel').textContent = "⚠️ 錯誤：未指定類別";
         alert("網址缺少 category 參數，請透過正確的 QR Code 或連結進入。");
+        return;
+      }
+
+      // 檢查是否擁有 API_URL
+      if (!API_URL) {
+        document.getElementById('categoryLabel').textContent = "⚠️ 請先點擊上方 ⚙️ 設定 API";
+        setTimeout(setApiUrlUI, 500); // 延遲彈出設定視窗
         return;
       }
       
       document.getElementById('categoryLabel').textContent = currentCategory;
       fetchItemsFromAPI(currentCategory);
     });
+
+    // ==================== 手動設定 API 介面 ====================
+    function setApiUrlUI() {
+      const currentApi = localStorage.getItem('GAS_API_URL') || "";
+      const userApi = prompt("⚙️ 系統設定\n\n請輸入您的 Google Apps Script 部署網址 (結尾為 /exec)：", currentApi);
+      
+      if (userApi !== null) {
+        if (userApi.trim() === "") {
+          alert("❌ 網址不能為空！");
+        } else {
+          localStorage.setItem('GAS_API_URL', userApi.trim());
+          API_URL = userApi.trim();
+          alert("✅ 設定儲存成功！系統將重新載入。");
+          location.reload();
+        }
+      }
+    }
 
     // ==================== 從後端 API 取得物品清單 ====================
     function fetchItemsFromAPI(category) {
@@ -317,7 +356,45 @@
       }
     }
 
-    // ==================== 掃描相關 (前端分離後權限問題已解決) ====================
+    // ==================== Nokia QR Code 解析邏輯 ====================
+    function parseNokiaQRCode(text) {
+      let p1 = "", sVal = "";
+      
+      // 判斷是否包含 Nokia 常用的分隔符號 (\x1d 或 ASCII 29 Group Separator)
+      if (text.includes('\x1d') || text.includes('')) {
+        const parts = text.split(/[\x1d]/);
+        for (let part of parts) {
+          // 抓取 1P (料號)
+          if (part.startsWith('1P')) {
+            p1 = part.substring(2);
+          }
+          // 抓取 S (序號)，需排除例外
+          else if (part.charAt(0) === 'S' && part.charAt(1) !== ' ') {
+            sVal = part.substring(1);
+          }
+        }
+      } else {
+        // 如果不可見字元被掃描器過濾掉，則啟用備用正則匹配法
+        const match1P = text.match(/1P([A-Z0-9.-]+)/);
+        const matchS = text.match(/S([A-Z0-9]+)/);
+        if (match1P) p1 = match1P[1];
+        if (matchS) sVal = matchS[1];
+      }
+
+      // 根據提取結果組合輸出格式
+      if (p1 && sVal) {
+        return `(1P)"${p1}"+(S)"${sVal}"`;
+      } else if (p1) {
+        return `(1P)"${p1}"`;
+      } else if (sVal) {
+        return `(S)"${sVal}"`;
+      }
+      
+      // 如果都不是，則原封不動輸出原本掃到的內容
+      return text;
+    }
+
+    // ==================== 掃描相關 ====================
     document.getElementById('scanQrBtn').addEventListener('click', () => { currentScanMode = 'qrCode'; startScanner(); });
     document.getElementById('scanSnBtn').addEventListener('click', () => { currentScanMode = 'sn'; startScanner(); });
 
@@ -362,12 +439,15 @@
     }
 
     function onScanSuccess(decodedText) {
+      // 呼叫 Nokia 條碼解析器 (如果是普通條碼會自動回傳原始字串)
+      const parsedText = parseNokiaQRCode(decodedText);
+
       if (currentScanMode === 'qrCode') {
-        document.getElementById('qrCode').value = decodedText;
+        document.getElementById('qrCode').value = parsedText;
         document.getElementById('qrDisplay').className = 'sn-display';
-        document.getElementById('qrDisplay').textContent = '✅ ' + decodedText;
+        document.getElementById('qrDisplay').textContent = '✅ ' + parsedText;
       } else {
-        snList.push(decodedText);
+        snList.push(parsedText);
         updateSnDisplay();
       }
       closeCamera();
@@ -484,7 +564,6 @@
       document.getElementById('loading').style.display = 'block';
       document.getElementById('submitBtn').disabled = true;
 
-      // 組裝 payload，加入 actionType
       const payload = {
         actionType: 'submit',
         ...currentFormData
@@ -508,7 +587,6 @@
           selectedAction = '';
           snList = [];
           
-          // 更新選單中的庫存
           const select = document.getElementById('itemName');
           const option = select.options[select.selectedIndex];
           if(option) option.dataset.stock = data.newStock;
