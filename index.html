@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>出入庫系統 - 專業掃描整合版 v6.1</title>
+  <title>出入庫系統 - 專業掃描整合版 v6.2</title>
   <!-- 引入 HTML5-QRCode 掃描庫 -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
@@ -103,7 +103,6 @@
     <div class="header">
       <h1 style="display: flex; justify-content: center; align-items: center; gap: 10px;">
         📦 出入庫系統
-        <button onclick="setApiUrlUI()" style="background: #f0f0f0; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; padding: 4px 8px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="設定 API 網址">⚙️</button>
       </h1>
       <div style="background: #eee; padding: 4px 12px; border-radius: 12px; font-size: 14px; display: inline-block; margin-top: 5px; font-weight: bold; color: #555;">
         當前類別: <span id="categoryLabel">載入中...</span>
@@ -206,9 +205,9 @@
 
 <script>
     // ==========================================
-    // API_URL 改為動態取得 (由網址參數或瀏覽器暫存)
+    // 🚨 在此處貼上您的 Google Apps Script 網頁應用程式網址 (結尾是 /exec)
     // ==========================================
-    let API_URL = ""; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbx2Fvgj6YiSmLQmQfk9box1HflczNdJFxLNnzLYWoYUbaRM9nth2mdEcC_lOQzhRIz5/exec"; 
     
     let currentCategory = "";
     let html5QrCode = null;
@@ -223,52 +222,21 @@
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       currentCategory = urlParams.get('category');
-      const apiParam = urlParams.get('api');
       
-      // 1. 如果網址中有帶入 api 參數，自動記憶到瀏覽器
-      if (apiParam) {
-        API_URL = decodeURIComponent(apiParam);
-        localStorage.setItem('GAS_API_URL', API_URL);
-        // 清理網址列，讓網址看起來乾淨
-        window.history.replaceState({}, document.title, window.location.pathname + "?category=" + encodeURIComponent(currentCategory));
-      } else {
-        // 2. 否則從瀏覽器暫存抓取
-        API_URL = localStorage.getItem('GAS_API_URL');
-      }
-
       if (!currentCategory) {
         document.getElementById('categoryLabel').textContent = "⚠️ 錯誤：未指定類別";
         alert("網址缺少 category 參數，請透過正確的 QR Code 或連結進入。");
         return;
       }
 
-      // 檢查是否擁有 API_URL
-      if (!API_URL) {
-        document.getElementById('categoryLabel').textContent = "⚠️ 請先點擊上方 ⚙️ 設定 API";
-        setTimeout(setApiUrlUI, 500); // 延遲彈出設定視窗
+      if (!API_URL || API_URL === "在此輸入您的_GAS_Web_App_URL") {
+        alert("⚠️ 系統尚未設定 API_URL，請先在程式碼中填寫 GAS 部署網址！");
         return;
       }
       
       document.getElementById('categoryLabel').textContent = currentCategory;
       fetchItemsFromAPI(currentCategory);
     });
-
-    // ==================== 手動設定 API 介面 ====================
-    function setApiUrlUI() {
-      const currentApi = localStorage.getItem('GAS_API_URL') || "";
-      const userApi = prompt("⚙️ 系統設定\n\n請輸入您的 Google Apps Script 部署網址 (結尾為 /exec)：", currentApi);
-      
-      if (userApi !== null) {
-        if (userApi.trim() === "") {
-          alert("❌ 網址不能為空！");
-        } else {
-          localStorage.setItem('GAS_API_URL', userApi.trim());
-          API_URL = userApi.trim();
-          alert("✅ 設定儲存成功！系統將重新載入。");
-          location.reload();
-        }
-      }
-    }
 
     // ==================== 從後端 API 取得物品清單 ====================
     function fetchItemsFromAPI(category) {
