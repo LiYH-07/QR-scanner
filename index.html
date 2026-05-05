@@ -152,18 +152,6 @@
         <div id="qrDisplay" class="sn-display empty">尚未掃描</div>
       </div>
 
-      <!-- 一般序號欄位 (支援多次掃描) -->
-      <div class="form-group">
-        <label>🔖 其他序號 / 料號</label>
-        <input type="text" id="sn" name="sn" placeholder="掃描或手輸其他序號">
-        <button type="button" class="sn-btn" id="scanSnBtn">📷 掃描序號</button>
-        <div style="margin-top: 5px;">
-          <button type="button" class="add-sn-btn" id="addSnBtn">➕ 新增更多序號</button>
-          <button type="button" class="clear-sn-btn" id="clearSnBtn">🗑️ 清除所有序號</button>
-        </div>
-        <div id="snDisplay" class="sn-display empty">無其他序號</div>
-      </div>
-
       <div class="camera-container" id="cameraContainer">
         <div class="scan-hint">💡 點擊掃描框可對焦 | 雙指縮放可調整大小</div>
         <div id="reader"></div>
@@ -177,6 +165,18 @@
             <button type="button" class="ctrl-btn close-btn" onclick="closeCamera()">❌ 關閉相機</button>
           </div>
         </div>
+      </div>
+
+      <!-- 一般序號欄位 (支援多次掃描) -->
+      <div class="form-group">
+        <label>🔖 其他序號 / 料號</label>
+        <input type="text" id="sn" name="sn" placeholder="掃描或手輸其他序號">
+        <button type="button" class="sn-btn" id="scanSnBtn">📷 掃描序號</button>
+        <div style="margin-top: 5px;">
+          <button type="button" class="add-sn-btn" id="addSnBtn">➕ 新增更多序號</button>
+          <button type="button" class="clear-sn-btn" id="clearSnBtn">🗑️ 清除所有序號</button>
+        </div>
+        <div id="snDisplay" class="sn-display empty">無其他序號</div>
       </div>
 
       <div class="form-group">
